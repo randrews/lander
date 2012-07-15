@@ -75,7 +75,7 @@ function love.update(dt)
    local a = math.atan2(dy, dx)
    rocket_pos.a = a + math.pi/2 -- / math.pi * 180
 
-   thrust:setPosition(rocket_pos.x, rocket_pos.y)
+   thrust:setPosition(rocket_pos.x - math.cos(a)*32, rocket_pos.y - math.sin(a)*32)
    thrust:setDirection(a)
    thrust:update(dt)
 end
