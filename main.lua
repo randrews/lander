@@ -10,8 +10,10 @@ local particle = nil
 local thrust = nil
 local world = nil
 
+local ground_points = nil
 local edge = {}
 local rocket = {}
+local rotate_flag = true
 
 function love.load()
    math.randomseed(os.time())
@@ -46,7 +48,8 @@ function love.load()
 
    rocket.body = love.physics.newBody(world, 400, 300, 'dynamic')
    rocket.shape = love.physics.newRectangleShape(64, 64)
-   love.physics.newFixture(rocket.body, rocket.shape)
+   local rfix = love.physics.newFixture(rocket.body, rocket.shape)
+   rfix:setUserData(rocket)
 
    edge.body = love.physics.newBody(world, 0, 0, 'static')
    edge.shapes = {}
@@ -58,13 +61,73 @@ function love.load()
    for _, s in ipairs(edge.shapes) do
       love.physics.newFixture(edge.body, s)
    end
+
+   ground_points = create_ground(world, 0, 600, 800, 64)
+   world:setCallbacks(beginContact, endContact)
+end
+
+function beginContact(fix1, fix2, contact)
+   if fix1:getUserData() == rocket or fix2:getUserData() == rocket then
+      rotate_flag = false
+   end
+end
+
+function endContact(fix1, fix2, contact)
+   if fix1:getUserData() == rocket or fix2:getUserData() == rocket then
+      rotate_flag = true
+   end
+end
+
+
+function create_ground(world, x1, y1, w, h, ivl, var)
+   ivl = ivl or 32
+   var = var or 10
+   assert(x1 and y1 and w and h)
+   assert(ivl > var * 2 and h > var)
+
+   local points = {x1, y1-h}
+   local function r() return math.random(var*2) - var end
+
+   for x = 0, w, ivl do
+      table.insert(points, x1 + x + r())
+      table.insert(points, y1 - h + r())
+   end
+
+   table.insert(points, x1 + w)
+   table.insert(points, y1 - h)
+
+   -- Create physics
+
+   local body = love.physics.newBody(world, 0, 0, 'static')
+   for n = 3, #points, 2 do      
+      local shape = love.physics.newEdgeShape(points[n-2], points[n-1],
+                                              points[n], points[n+1])
+
+      love.physics.newFixture(body, shape)
+   end
+
+   table.insert(points, x1 + w)
+   table.insert(points, y1)
+
+   table.insert(points, x1)
+   table.insert(points, y1)
+
+   return points
 end
 
 function love.draw()
    local g = love.graphics
+
+   g.setColor(255, 255, 255)
    g.draw(background, 0, 0)
 
+   g.setColor(255, 255, 255)
    g.draw(thrust, 0, 0)
+
+   g.setColor(96, 96, 96)
+   g.polygon('fill', ground_points)
+
+   g.setColor(255, 255, 255)
    g.draw(rocket.image,
           rocket.body:getX(), rocket.body:getY(), -- position
           rocket.body:getAngle(), -- rotation
@@ -82,19 +145,22 @@ function love.update(dt)
    local dx = love.mouse.getX() - rocket.body:getX()
    local dy = love.mouse.getY() - rocket.body:getY()
 
-
    local a = math.atan2(dy, dx)
-   rocket.body:setAngle(a + math.pi/2) -- / math.pi * 180
+   local ra = rocket.body:getAngle() - math.pi/2
 
-   thrust:setPosition(rocket.body:getX() - math.cos(a)*32, rocket.body:getY() - math.sin(a)*32)
-   thrust:setDirection(a)
+   thrust:setPosition(rocket.body:getX() - math.cos(ra)*32, rocket.body:getY() - math.sin(ra)*32)
+   thrust:setDirection(rocket.body:getAngle() - math.pi/2)
 
    if love.mouse.isDown('l') then
       thrust:setEmissionRate(100)
       local pwr = 25
-      rocket.body:applyForce(math.cos(a)*pwr, math.sin(a)*pwr)
+      rocket.body:applyForce(math.cos(ra)*pwr, math.sin(ra)*pwr)
    else
       thrust:setEmissionRate(0)
+   end
+
+   if rotate_flag then
+      rocket.body:setAngle(a + math.pi/2) -- / math.pi * 180
    end
 
    thrust:update(dt)
