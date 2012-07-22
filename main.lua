@@ -10,7 +10,7 @@ local particle = nil
 local thrust = nil
 local world = nil
 
-local ground_points = nil
+local ground = nil
 local edge = {}
 local rocket = {}
 local rotate_flag = true
@@ -62,7 +62,7 @@ function love.load()
       love.physics.newFixture(edge.body, s)
    end
 
-   ground_points = create_ground(world, 0, 600, 800, 64)
+   ground = create_ground(world, 0, 600, 800, 64)
    world:setCallbacks(beginContact, endContact)
 end
 
@@ -79,40 +79,11 @@ function endContact(fix1, fix2, contact)
 end
 
 
-function create_ground(world, x1, y1, w, h, ivl, var)
-   ivl = ivl or 32
-   var = var or 10
-   assert(x1 and y1 and w and h)
-   assert(ivl > var * 2 and h > var)
-
-   local points = {x1, y1-h}
-   local function r() return math.random(var*2) - var end
-
-   for x = 0, w, ivl do
-      table.insert(points, x1 + x + r())
-      table.insert(points, y1 - h + r())
-   end
-
-   table.insert(points, x1 + w)
-   table.insert(points, y1 - h)
-
-   -- Create physics
-
+function create_ground(world, x1, y1, w, h)
    local body = love.physics.newBody(world, 0, 0, 'static')
-   for n = 3, #points, 2 do      
-      local shape = love.physics.newEdgeShape(points[n-2], points[n-1],
-                                              points[n], points[n+1])
-
-      love.physics.newFixture(body, shape)
-   end
-
-   table.insert(points, x1 + w)
-   table.insert(points, y1)
-
-   table.insert(points, x1)
-   table.insert(points, y1)
-
-   return points
+   local shape = love.physics.newEdgeShape(x1, y1-h, x1+w, y1-h)
+   love.physics.newFixture(body, shape)
+   return {x = x1, y = y1-h, w = w, h = h}
 end
 
 function love.draw()
@@ -125,7 +96,7 @@ function love.draw()
    g.draw(thrust, 0, 0)
 
    g.setColor(96, 96, 96)
-   g.polygon('fill', ground_points)
+   g.rectangle('fill', ground.x, ground.y, ground.w, ground.h)
 
    g.setColor(255, 255, 255)
    g.draw(rocket.image,
